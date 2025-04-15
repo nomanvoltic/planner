@@ -96,7 +96,7 @@ def get_groq_response(user_input, is_uml= False):
                 """
 
         chat_completion = groq_client.chat.completions.create(
-            model="meta-llama/llama-4-maverick-17b-128e-instruct",
+            model="llama3-70b-8192",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_input}

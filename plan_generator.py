@@ -186,25 +186,69 @@ with col1:
         else:
             st.warning("Please enter a project idea to generate a plan.")
             
-
 with col2:
     with st.expander("🔧 UML Diagram Options", expanded=True):
         diagram_type = st.selectbox("Diagram Type", ["Class", "Sequence", "Use Case", "Activity", "Component"])
-        description = st.text_area("System / Component Description")
-        # extra_context = st.text_area("Actors / Features (optional)")
 
         if st.button("Generate UML Diagram Code"):
-            if description.strip():
+            if 'latest_plan' not in st.session_state or not st.session_state['latest_plan'].strip():
+                st.warning("Please generate a plan first (Basic or Advanced) before creating a UML diagram.")
+            else:
+                base_description = st.session_state['latest_plan'].strip()
                 full_prompt = f"""
 Diagram Type: {diagram_type}
-Description: {description.strip()}
+Description: {base_description}
 """
                 st.session_state['messages'].append({"role": "user", "content": full_prompt})
-                uml_code = get_groq_response(full_prompt, is_uml=True)
+                uml_code = get_groq_response(full_prompt, UML_PROMPT)
                 st.session_state['messages'].append({"role": "assistant", "content": uml_code})
-            else:
-                st.warning("Please provide a description for the UML diagram.")
 
+                # Save UML code to file
+                now = datetime.datetime.now()
+                date_folder = now.strftime("%Y-%m-%d")
+                timestamp = now.strftime("%H%M%S")
+                safe_type = diagram_type.lower().replace(" ", "_")
+
+                output_dir = os.path.join("uml_outputs", date_folder)
+                os.makedirs(output_dir, exist_ok=True)
+
+                filename = f"{timestamp}_{safe_type}_diagram.txt"
+                filepath = os.path.join(output_dir, filename)
+
+                with open(filepath, "w", encoding="utf-8") as file:
+                    file.write(uml_code)
+
+                st.download_button(
+                    label="💾 Download UML Code",
+                    data=uml_code,
+                    file_name=filename,
+                    mime="text/plain"
+                )
+
+                st.success(f"UML diagram saved to: `{filepath}`")
+
+                # Trigger rendering
+                st.session_state['last_uml_path'] = filepath
+                st.session_state['uml_render_ready'] = True
+
+
+if st.session_state.get('uml_render_ready') and st.session_state.get('last_uml_path'):
+    st.subheader("📄 Render UML Diagram")
+    if st.button("Render Diagram Image"):
+        txt_path = st.session_state['last_uml_path']
+        jar_path = "plantuml.jar"  # Make sure this JAR file exists in your root or set correct path
+
+        try:
+            subprocess.run(["java", "-jar", jar_path, txt_path], check=True)
+            image_path = txt_path.replace(".txt", ".png")
+            if os.path.exists(image_path):
+                st.image(image_path, caption="Rendered UML Diagram", use_container_width=True)
+                with open(image_path, "rb") as img_file:
+                    st.download_button("⬇️ Download Diagram Image", data=img_file, file_name=os.path.basename(image_path), mime="image/png")
+            else:
+                st.error("❌ Failed to find the rendered image.")
+        except subprocess.CalledProcessError as e:
+            st.error(f"Error rendering UML diagram: {e}")
 
 # Display chat history
 st.divider()
@@ -221,3 +265,4 @@ for message in st.session_state['messages']:
 # Clear Chat Button
 if st.button("Clear Chat"):
     st.session_state['messages'] = []
+    st.session_state['latest_plan'] = ""

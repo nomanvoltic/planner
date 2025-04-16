@@ -168,13 +168,24 @@ user_input = st.text_input("Enter your project idea or diagram request:")
 col1, col2 = st.columns([1, 1])
 
 with col1:
-    if st.button("Generate Plan"):
+    if st.button("Generate Basic Plan"):
         if user_input:
             st.session_state['messages'].append({"role": "user", "content": user_input})
-            plan = get_groq_response(user_input)
+            plan = get_groq_response(user_input, BASIC_PLAN_PROMPT)
             st.session_state['messages'].append({"role": "assistant", "content": plan})
+            st.session_state['latest_plan'] = plan
         else:
             st.warning("Please enter a project idea to generate a plan.")
+        
+    if st.button("Generate Advanced Plan"):
+        if user_input:
+            st.session_state['messages'].append({"role": "user", "content": user_input})
+            plan = get_groq_response(user_input, ADVANCED_PLAN_PROMPT)
+            st.session_state['messages'].append({"role": "assistant", "content": plan})
+            st.session_state['latest_plan'] = plan
+        else:
+            st.warning("Please enter a project idea to generate a plan.")
+            
 
 with col2:
     with st.expander("🔧 UML Diagram Options", expanded=True):
